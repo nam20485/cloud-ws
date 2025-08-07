@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hetzner RAID 10 Automated Setup Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .prose {
+            max-width: 80ch;
+        }
+        .prose h1, .prose h2, .prose h3 {
+            font-weight: 700;
+        }
+        .prose code {
+            background-color: #f3f4f6;
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            border-radius: 6px;
+        }
+        .prose pre {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .prose pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-relaxed">
+    <div class="container mx-auto px-4 py-12">
+        <article class="prose lg:prose-xl mx-auto">
+            <h1>Hetzner RAID 10 Automated Setup Guide</h1>
+            <p class="text-lg">This guide will walk you through the process of automatically provisioning a Hetzner dedicated server and configuring a RAID 10 array using Terraform and Ansible.</p>
+
+            <h2>Prerequisites</h2>
+            <ul>
+                <li>A Hetzner Cloud account.</li>
+                <li>A Hetzner API token with read and write permissions.</li>
+                <li>Terraform installed on your local machine.</li>
+                <li>Ansible installed on your local machine.</li>
+                <li>An SSH key pair. Your public key should be added to your Hetzner Cloud project.</li>
+            </ul>
+
+            <h3>Installing Ansible</h3>
+            <p>If you don't have Ansible installed, here are the commands for common operating systems:</p>
+            <h4>macOS (with Homebrew)</h4>
+            <pre><code>brew install ansible</code></pre>
+            <h4>Ubuntu / Debian</h4>
+            <pre><code>sudo apt update
+sudo apt install software-properties-common
+sudo add-apt-repository --yes --update ppa:ansible/ansible
+sudo apt install ansible</code></pre>
+
+            <h2>Step 1: Provision the Server with Terraform</h2>
+            <p>First, we'll use Terraform to create the server.</p>
+            <ol>
+                <li>Create a new directory for your project and navigate into it.</li>
+                <li>
+                    Create a file named <code>main.tf</code> with the provided Terraform configuration. This file defines the server we want to create.
+                </li>
+                <li>
+                    Create a file named <code>terraform.tfvars</code> to store your API token. Add the following line, replacing <code>YOUR_HETZNER_API_TOKEN</code> with your actual token:
+                    <pre><code>hcloud_token = "YOUR_HETZNER_API_TOKEN"</code></pre>
+                </li>
+                <li>
+                    Initialize Terraform:
+                    <pre><code>terraform init</code></pre>
+                </li>
+                <li>
+                    Review the execution plan:
+                    <pre><code>terraform plan</code></pre>
+                </li>
+                <li>
+                    Apply the configuration to provision the server:
+                    <pre><code>terraform apply</code></pre>
+                    Terraform will output the server's IP address when it's done.
+                </li>
+            </ol>
+
+            <h2>Step 2: Configure RAID 10 with Ansible</h2>
+            <p>Now that the server is running, we'll use Ansible to configure the RAID 10 array.</p>
+            <ol>
+                <li>
+                    Create a file named <code>inventory.ini</code> and add the server's IP address to it.
+                </li>
+                <li>
+                    Create a file named <code>playbook.yml</code> with the provided Ansible playbook. This playbook contains the tasks to set up the RAID array.
+                </li>
+                <li>
+                    Run the Ansible playbook:
+                    <pre><code>ansible-playbook -i inventory.ini playbook.yml</code></pre>
+                </li>
+            </ol>
+
+            <h2>Step 3: Verify the RAID Array</h2>
+            <p>Finally, let's SSH into the server and verify that the RAID 10 array is set up correctly.</p>
+            <ol>
+                <li>
+                    SSH into the server:
+                    <pre><code>ssh root@&lt;your_server_ip&gt;</code></pre>
+                </li>
+                <li>
+                    Check the RAID status:
+                    <pre><code>cat /proc/mdstat</code></pre>
+                    You should see your <code>md0</code> device active and with 4 devices.
+                </li>
+                <li>
+                    Check the filesystem:
+                    <pre><code>df -h</code></pre>
+                    You should see the <code>/dev/md0</code> device mounted at <code>/mnt/raid10</code>.
+                </li>
+            </ol>
+            <p>Congratulations! You have successfully provisioned a Hetzner dedicated server with a RAID 10 array using Terraform and Ansible.</p>
+        </article>
+    </div>
+</body>
+</html>
