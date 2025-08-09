@@ -1,0 +1,48 @@
+name: Ansible Lint & Syntax
+
+on:
+  push:
+    branches: [ main, gpt5-attempt ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-syntax:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ansible: [ '9.0.0', '9.1.0' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install ansible==${{ matrix.ansible }} 'ansible-lint>=24.2.0,<25.0.0'
+
+      - name: ansible-lint
+        run: ansible-lint
+
+      - name: Syntax check
+        run: ansible-playbook --syntax-check ubuntu-cinnamon/workstation.yml
+
+      - name: List tasks (smoke)
+        run: ansible-playbook -i inventory.ini ubuntu-cinnamon/workstation.yml --list-tasks || true
+
+      - name: Archive lint reports (placeholder)
+        if: always()
+        run: |
+          mkdir -p artifacts
+          echo 'Placeholder for future structured outputs' > artifacts/readme.txt
+        
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-artifacts-${{ matrix.ansible }}
+          path: artifacts

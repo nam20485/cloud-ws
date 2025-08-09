@@ -1,0 +1,9 @@
+---
+- name: Converge gpu_monitoring role (delegated)
+  hosts: all
+  become: true
+  vars:
+    node_exporter_version: "1.8.2"
+    gpu_metrics_interval_sec: 60
+  roles:
+    - role: gpu_monitoring
