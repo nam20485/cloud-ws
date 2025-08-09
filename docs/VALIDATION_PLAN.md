@@ -17,13 +17,13 @@ Structured, incremental validation paths for `ubuntu-cinnamon/workstation.yml` w
 ---
 ## 1. Static Analysis & Lint (Fast, No Cost)
 
-- [ ] (Rec) Run `ansible-lint` on the repo (catches style & common errors) — Benefit: early failure; Tradeoff: may require minor stylistic fixes.
-- [ ] (Rec) `ansible-playbook --syntax-check ubuntu-cinnamon/workstation.yml` — Benefit: ensures YAML + task syntax; Tradeoff: none.
-- [ ] (Rec) `ansible-playbook -i inventory.ini ubuntu-cinnamon/workstation.yml --list-tasks` — Benefit: scope preview; Tradeoff: none.
+- [x] (Rec) Run `ansible-lint` on the repo (catches style & common errors) — Benefit: early failure; Tradeoff: may require minor stylistic fixes.
+- [x] (Rec) `ansible-playbook --syntax-check ubuntu-cinnamon/workstation.yml` — Benefit: ensures YAML + task syntax; Tradeoff: none.
+- [x] (Rec) `ansible-playbook -i inventory.ini ubuntu-cinnamon/workstation.yml --list-tasks` — Benefit: scope preview; Tradeoff: none.
 
 ## 2. Dry Run & Safety Gates
 
-- [ ] (Rec) Use `--check` mode (dry run) (some tasks may report changed incorrectly) — Benefit: safe preview; Tradeoff: not all modules fully support check mode.
+- [x] (Rec) Use `--check` mode (dry run) (some tasks may report changed incorrectly) — Benefit: safe preview; Tradeoff: not all modules fully support check mode.
 - [ ] (Opt) Tag filtering (`--tags raid_lvm,nvidia`) to validate critical subsets first — Benefit: quicker feedback; Tradeoff: partial coverage.
 
 ## 3. Idempotency Verification
@@ -37,16 +37,16 @@ Structured, incremental validation paths for `ubuntu-cinnamon/workstation.yml` w
 Choose one containerized approach (MutEx):
 - [ ] (MutEx)(Rec) Molecule + Docker driver with selective role converge (skip GPU / RAID tasks via vars) — Benefit: fast local; Tradeoff: cannot exercise real mdadm or GPU.
 - [ ] (MutEx)(Opt) Molecule + Podman driver (rootless) — Benefit: no Docker dependency; Tradeoff: similar limitations.
-- [ ] (MutEx)(Adv) Molecule + Delegated (local VM) for closer system fidelity — Benefit: real systemd & kernel modules; Tradeoff: more setup.
+- [x] (MutEx)(Adv) Molecule + Delegated (local VM) for closer system fidelity — Benefit: real systemd & kernel modules; Tradeoff: more setup.
 
 Additional:
-- [ ] (Opt) Write Molecule verify step using Testinfra (check packages, services, rendered configs).
+- [x] (Opt) Write Molecule verify step using Testinfra (check packages, services, rendered configs).
 
 ## 5. Storage Stack Simulation (No Real NVMe Yet)
 
 Pick ONE primary simulation path (MutEx):
 - [ ] (MutEx)(Rec) Loopback sparse files + losetup to mimic 4 devices — Benefit: zero cost, mdadm+lvm real; Tradeoff: lower performance.
-- [ ] (MutEx)(Opt) QEMU/KVM local VM with 4 extra virtio disks — Benefit: isolation; Tradeoff: more RAM/CPU.
+- [x] (MutEx)(Opt) QEMU/KVM local VM with 4 extra virtio disks — Benefit: isolation; Tradeoff: more RAM/CPU.
 - [ ] (MutEx)(Cost$)(Adv) Cloud ephemeral instance with 4 detachable volumes — Benefit: closer to prod cloud behavior; Tradeoff: spend.
 
 Enhancements:
@@ -62,33 +62,33 @@ Tiered (can combine except where noted):
 
 ## 7. NICE DCV Validation
 
-- [ ] (Rec) Check service: `systemctl status dcvserver` — Benefit: immediate health.
-- [ ] (Opt) `dcv list-sessions` & create a virtual session — Benefit: session layer test; Tradeoff: modest time.
+- [x] (Rec) Check service: `systemctl status dcvserver` — Benefit: immediate health.
+- [x] (Opt) `dcv list-sessions` & create a virtual session — Benefit: session layer test; Tradeoff: modest time.
 - [ ] (Opt) Client connect from LAN and observe frame rate & quality — Benefit: end-user QoE; Tradeoff: manual interaction.
 - [ ] (Adv) Packet capture (QUIC enabled) to confirm transport — Benefit: verifies performance features; Tradeoff: complexity.
 
 ## 8. Parsec Validation
 
-- [ ] (Rec) Service status: `systemctl status parsecd` — Benefit: baseline.
+- [x] (Rec) Service status: `systemctl status parsecd` — Benefit: baseline.
 - [ ] (Opt) Client connection & stats overlay to validate bitrate and latency — Benefit: functional QoE; Tradeoff: manual.
-- [ ] (Adv) Automated screenshot diff (headless X) to detect rendering differences — Benefit: regression detection; Tradeoff: scripting overhead.
+- [x] (Adv) Automated screenshot diff (headless X) to detect rendering differences — Benefit: regression detection; Tradeoff: scripting overhead.
 
 ## 9. Root Migration Testing
 
 Pick ONE initial approach (MutEx):
-- [ ] (MutEx)(Rec) VM snapshot test: enable `migrate_root: true` → verify new root device after reboot — Benefit: safe & reversible; Tradeoff: requires snapshot tooling.
+- [x] (MutEx)(Rec) VM snapshot test: enable `migrate_root: true` → verify new root device after reboot — Benefit: safe & reversible; Tradeoff: requires snapshot tooling.
 - [ ] (MutEx)(Opt) Loopback device environment root migration — Benefit: local; Tradeoff: more manual mapping.
 - [ ] (MutEx)(Risk)(Adv) Direct on target hardware (after backups) — Benefit: final confidence; Tradeoff: risk of unbootable system.
 
 Post-migration checks:
-- [ ] (Rec) Confirm new `/` is LV via `lsblk` & `mount` — Benefit: correctness.
-- [ ] (Rec) Re-run playbook (idempotent path) — Benefit: ensures no re-migration.
+- [x] (Rec) Confirm new `/` is LV via `lsblk` & `mount` — Benefit: correctness.
+- [x] (Rec) Re-run playbook (idempotent path) — Benefit: ensures no re-migration.
 
 ## 10. Monitoring & Metrics
 
-- [ ] (Rec) Curl node exporter metrics: `curl localhost:9100/metrics | grep gpu_` — Benefit: quick validation.
-- [ ] (Opt) Spin up ephemeral Prometheus via docker-compose to scrape metrics — Benefit: trending visibility; Tradeoff: container setup.
-- [ ] (Adv) Add Grafana dashboard JSON (local container) — Benefit: visualization; Tradeoff: more components.
+- [x] (Rec) Curl node exporter metrics: `curl localhost:9100/metrics | grep gpu_` — Benefit: quick validation.
+- [x] (Opt) Spin up ephemeral Prometheus via docker-compose to scrape metrics — Benefit: trending visibility; Tradeoff: container setup.
+- [x] (Adv) Add Grafana dashboard JSON (local container) — Benefit: visualization; Tradeoff: more components.
 - [ ] (Cost$)(Opt) Hosted Prometheus/Grafana SaaS — Benefit: zero infra management; Tradeoff: recurring cost.
 
 ## 11. Performance / Load Scenarios
@@ -99,17 +99,17 @@ Post-migration checks:
 
 ## 12. CI/CD Integration
 
-- [ ] (Rec) GitHub Actions: lint + syntax job (matrix of ansible versions) — Benefit: consistent gate.
-- [ ] (Rec) GitHub Actions: Molecule (container) idempotency check — Benefit: automated regression detection.
-- [ ] (Opt) Artifact upload of logs (`/proc/mdstat`, `lvs`, `nvidia-smi`) — Benefit: audit trail.
+- [x] (Rec) GitHub Actions: lint + syntax job (matrix of ansible versions) — Benefit: consistent gate.
+- [x] (Rec) GitHub Actions: Molecule (container) idempotency check — Benefit: automated regression detection.
+- [x] (Opt) Artifact upload of logs (`/proc/mdstat`, `lvs`, `nvidia-smi`) — Benefit: audit trail.
 - [ ] (Adv) Self-hosted GPU runner for full path — Benefit: near-prod validation; Tradeoff: hardware mgmt.
 - [ ] (Cost$)(Opt) Packer template build (cloud builder) — Benefit: ready-made image artifact; Tradeoff: cloud spend.
 
 ## 13. Security / Hardening (Future Optional)
 
-- [ ] (Opt) ansible-lint ruleset extension for security
-- [ ] (Opt) Lynis baseline scan inside VM
-- [ ] (Opt) Fail2ban & firewall rule validation
+- [x] (Opt) ansible-lint ruleset extension for security
+- [x] (Opt) Lynis baseline scan inside VM
+- [x] (Opt) Fail2ban & firewall rule validation
 
 ## 14. Decision Summary Template
 
