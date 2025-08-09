@@ -1,0 +1,44 @@
+---
+- name: Add graphics drivers PPA
+  apt_repository:
+    repo: ppa:graphics-drivers/ppa
+    state: present
+  register: ppa_added
+
+- name: Apt update if PPA added
+  apt:
+    update_cache: true
+  when: ppa_added is changed
+
+- name: Install NVIDIA driver package
+  apt:
+    name: "{{ nvidia_driver_package }}"
+    state: present
+  register: nvidia_driver
+  notify: reboot_if_needed
+
+- name: Create NVIDIA persistence systemd unit
+  copy:
+    dest: /etc/systemd/system/nvidia-persistence.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=NVIDIA Persistence Mode
+      After=multi-user.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/nvidia-smi -pm 1
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  when: enable_nvidia_persistence
+  register: persistence_unit
+
+- name: Enable persistence service
+  systemd:
+    name: nvidia-persistence.service
+    enabled: true
+    state: started
+  when: enable_nvidia_persistence

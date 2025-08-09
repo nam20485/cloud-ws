@@ -1,0 +1,32 @@
+---
+- name: Download Parsec package
+  get_url:
+    url: "{{ parsec_deb_url }}"
+    dest: /tmp/parsec.deb
+    mode: '0644'
+
+- name: Install Parsec
+  apt:
+    deb: /tmp/parsec.deb
+
+- name: Ensure Parsec config directory
+  file:
+    path: "{{ parsec_config_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Write Parsec server config
+  copy:
+    dest: "{{ parsec_config_dir }}/server.conf"
+    mode: '0644'
+    content: |
+      [parsec]
+      {% for k,v in parsec_server_conf.items() %}{{ k }}={{ v }}
+      {% endfor %}
+  notify: reboot_if_needed
+
+- name: Enable and start parsecd
+  systemd:
+    name: parsecd
+    enabled: true
+    state: started

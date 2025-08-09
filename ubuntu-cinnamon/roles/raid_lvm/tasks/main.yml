@@ -1,0 +1,75 @@
+---
+- name: Ensure GPT partition (md raid) exists on each NVMe
+  parted:
+    device: "{{ item }}"
+    number: 1
+    label: gpt
+    name: raid
+    state: present
+    flags: [ raid ]
+  loop: "{{ nvme_devices }}"
+
+- name: Create / assemble RAID10 array
+  community.general.mdadm:
+    name: "{{ raid_device }}"
+    level: "{{ raid_level }}"
+    devices: "{{ nvme_devices | map('regex_replace', '$', 'p1') | list }}"
+    state: present
+    metadata: 1.2
+  register: raid_result
+
+- name: Persist mdadm config
+  shell: mdadm --detail --scan > /etc/mdadm/mdadm.conf
+  when: raid_result.changed
+  notify: regenerate_initramfs
+
+- name: Wait for RAID device
+  stat:
+    path: "{{ raid_device }}"
+  register: raid_stat
+  retries: 10
+  delay: 3
+  until: raid_stat.stat.exists
+
+- name: Create volume group on RAID
+  lvg:
+    vg: "{{ vg_name }}"
+    pvs: "{{ raid_device }}"
+
+- name: Create OS LV
+  lvol:
+    vg: "{{ vg_name }}"
+    lv: "{{ lv_os_name }}"
+    size: "{{ os_lv_size }}"
+    shrink: no
+    state: present
+
+- name: Create DATA LV (remaining space)
+  lvol:
+    vg: "{{ vg_name }}"
+    lv: "{{ lv_data_name }}"
+    size: 100%FREE
+    state: present
+
+- name: Create filesystems
+  filesystem:
+    fstype: "{{ item.fstype }}"
+    dev: "/dev/{{ vg_name }}/{{ item.lv }}"
+    opts: "-E lazy_itable_init=0,lazy_journal_init=0"
+  loop: "{{ filesystems }}"
+
+- name: Create mount points
+  file:
+    path: "{{ item.mount }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ filesystems }}"
+
+- name: Mount logical volumes
+  mount:
+    path: "{{ item.mount }}"
+    src: "/dev/{{ vg_name }}/{{ item.lv }}"
+    fstype: "{{ item.fstype }}"
+    opts: "{{ item.opts }}"
+    state: mounted
+  loop: "{{ filesystems }}"

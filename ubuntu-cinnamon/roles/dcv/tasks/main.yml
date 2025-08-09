@@ -1,0 +1,45 @@
+---
+- name: Create temp dir for DCV
+  file:
+    path: /tmp/dcv
+    state: directory
+
+- name: Download NICE DCV archive
+  get_url:
+    url: "{{ dcv_download_url }}"
+    dest: "/tmp/dcv/{{ dcv_tgz }}"
+    mode: '0644'
+  register: dcv_download
+
+- name: Extract DCV archive
+  unarchive:
+    src: "/tmp/dcv/{{ dcv_tgz }}"
+    dest: /tmp/dcv
+    remote_src: true
+  when: dcv_download.changed
+
+- name: Install DCV packages
+  apt:
+    deb: "{{ item }}"
+  loop: "{{ lookup('ansible.builtin.fileglob', '/tmp/dcv/nice-dcv-*/ubuntu2404/x86_64/*.deb', wantlist=True) }}"
+
+- name: Ensure DCV config directory
+  file:
+    path: /etc/dcv
+    state: directory
+    mode: '0755'
+
+- name: Apply DCV config overrides
+  lineinfile:
+    path: /etc/dcv/dcv.conf
+    regexp: "^{{ item.key | regex_escape }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: yes
+  loop: "{{ dcv_config_overrides | dict2items }}"
+  notify: reboot_if_needed
+
+- name: Enable and start dcvserver
+  systemd:
+    name: dcvserver
+    enabled: true
+    state: started

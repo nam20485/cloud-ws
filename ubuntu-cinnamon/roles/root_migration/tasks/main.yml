@@ -1,0 +1,93 @@
+---
+# Automated root migration onto the prepared OS logical volume.
+# Preconditions: lv_os is created and formatted, mounted at /mnt/os (from raid_lvm role).
+# This role will:
+#  - Create mountpoint (root_new_mount)
+#  - Mount OS LV if not already
+#  - Rsync current root
+#  - Generate fstab with new root
+#  - Bind mount pseudo filesystems
+#  - Chroot to install grub on each boot device
+#  - Regenerate initramfs & grub config
+#  - Mark migration complete
+#  - Request reboot
+
+- name: Abort if marker exists (already migrated)
+  stat:
+    path: "{{ root_migration_marker }}"
+  register: migration_marker
+
+- name: Ensure target mount directory
+  file:
+    path: "{{ root_new_mount }}"
+    state: directory
+  when: not migration_marker.stat.exists
+
+- name: Mount OS LV to target
+  mount:
+    path: "{{ root_new_mount }}"
+    src: "/dev/{{ vg_name }}/{{ lv_os_name }}"
+    fstype: ext4
+    state: mounted
+  when: not migration_marker.stat.exists
+
+- name: Rsync current root to LV
+  command: >
+    rsync -aAXH --exclude="/dev/*" --exclude="/proc/*" --exclude="/sys/*" --exclude="/tmp/*" \
+    --exclude="/run/*" --exclude="/mnt/*" --exclude="/media/*" --exclude="/lost+found" / {{ root_new_mount }}/
+  when: not migration_marker.stat.exists
+
+- name: Create fstab for new root
+  copy:
+    dest: "{{ root_new_mount }}/etc/fstab"
+    mode: '0644'
+    content: |
+      # /etc/fstab generated for migrated root
+      # <file system> <mount point> <type> <options> <dump> <pass>
+      /dev/{{ vg_name }}/{{ lv_os_name }}  /  ext4  defaults,noatime  0 1
+      /dev/{{ vg_name }}/{{ lv_data_name }}  /mnt/data  ext4  defaults,noatime  0 2
+      proc  /proc  proc  defaults  0 0
+      sysfs /sys   sysfs defaults 0 0
+      devpts /dev/pts devpts gid=5,mode=620 0 0
+      tmpfs /run tmpfs defaults,noatime 0 0
+  when: not migration_marker.stat.exists
+
+- name: Bind mount pseudo filesystems
+  command: "mount --bind {{ item.src }} {{ item.dest }}"
+  loop:
+    - { src: /dev, dest: "{{ root_new_mount }}/dev" }
+    - { src: /dev/pts, dest: "{{ root_new_mount }}/dev/pts" }
+    - { src: /proc, dest: "{{ root_new_mount }}/proc" }
+    - { src: /sys, dest: "{{ root_new_mount }}/sys" }
+    - { src: /run, dest: "{{ root_new_mount }}/run" }
+  when: not migration_marker.stat.exists
+
+- name: Ensure mdadm.conf inside chroot
+  shell: "mdadm --detail --scan > {{ root_new_mount }}/etc/mdadm/mdadm.conf"
+  when: not migration_marker.stat.exists
+
+- name: Install GRUB on each boot device
+  shell: "chroot {{ root_new_mount }} grub-install {{ item }}"
+  loop: "{{ root_bootloader_devices }}"
+  when: not migration_marker.stat.exists
+
+- name: Regenerate initramfs (inside chroot)
+  shell: "chroot {{ root_new_mount }} update-initramfs -u"
+  when: not migration_marker.stat.exists
+
+- name: Update grub config (inside chroot)
+  shell: "chroot {{ root_new_mount }} update-grub"
+  when: not migration_marker.stat.exists
+
+- name: Touch migration marker
+  file:
+    path: "{{ root_migration_marker }}"
+    state: touch
+  when: not migration_marker.stat.exists
+  notify:
+    - reboot_if_needed
+
+- name: Inform user migration success
+  debug:
+    msg: "Root migration completed. System will reboot; adjust boot order if required." 
+  when: not migration_marker.stat.exists

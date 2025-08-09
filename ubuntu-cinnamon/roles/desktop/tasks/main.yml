@@ -1,0 +1,12 @@
+---
+- name: Install Cinnamon desktop meta package
+  apt:
+    name: "{{ desktop_meta }}"
+    state: present
+  register: desktop_install
+
+- name: Set graphical target default
+  systemd:
+    name: graphical.target
+    enabled: true
+  when: desktop_install is changed

@@ -1,0 +1,17 @@
+---
+- name: Apply sysctl performance tuning
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop:
+    - { key: vm.swappiness, value: 10 }
+    - { key: vm.dirty_ratio, value: 15 }
+    - { key: vm.dirty_background_ratio, value: 5 }
+    - { key: fs.inotify.max_user_watches, value: 1048576 }
+
+- name: Install performance tooling
+  apt:
+    name: [ htop, nvtop, iperf3 ]
+    state: present

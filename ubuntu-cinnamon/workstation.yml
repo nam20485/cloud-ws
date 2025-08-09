@@ -1,0 +1,110 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    nvme_devices: ["/dev/nvme0n1", "/dev/nvme1n1", "/dev/nvme2n1", "/dev/nvme3n1"]
+    raid_level: 10
+    raid_device: /dev/md/raid10
+    vg_name: vg_workstation
+    lv_os_name: lv_os
+    lv_data_name: lv_data
+    os_lv_size: 120G
+    filesystems:
+      - { lv: "{{ lv_os_name }}",  mount: "/mnt/os",   fstype: ext4, opts: "defaults,noatime" }
+      - { lv: "{{ lv_data_name }}", mount: "/mnt/data", fstype: ext4, opts: "defaults,noatime" }
+
+    # Root migration automation
+    migrate_root: false
+    root_bootloader_devices: "{{ nvme_devices }}"
+    root_migration_marker: /root/.root_migration_done
+    root_new_mount: /mnt/newroot
+
+    # GPU monitoring / metrics
+    enable_gpu_monitoring: true
+    node_exporter_version: 1.8.1
+    gpu_metrics_interval_sec: 30
+
+    # Desktop
+    desktop_meta: cinnamon-desktop-environment
+
+    # NVIDIA
+    nvidia_driver_package: nvidia-driver-550
+    enable_nvidia_persistence: true
+
+    # NICE DCV
+    dcv_version: "2024.0-16117"
+    dcv_tgz: "nice-dcv-{{ dcv_version }}-ubuntu2404-x86_64.tgz"
+    dcv_base_url: "https://d1uj6qtbmh3dt5.cloudfront.net/2024.0/Servers"
+    dcv_download_url: "{{ dcv_base_url }}/{{ dcv_tgz }}"
+    dcv_config_overrides:
+      display/target-frame-rate: 120
+      display/quality-level: HIGH
+      display/enable-lossless: true
+      display/enable-quic-udp: true
+      session-management/virtual-session-x11-max-number-of-monitors: 4
+      session-management/virtual-session-x11-default-monitor-layout: "1920x1080"
+
+    # Parsec
+    parsec_deb_url: "https://builds.parsec.app/package/parsec-linux.deb"
+    parsec_config_dir: /etc/parsec
+    parsec_server_conf:
+      encoder_bitrate: 50000
+      encoder_software: false
+      encoder_min_qp: 18
+      encoder_max_qp: 28
+      decoder_software: false
+      server_tickrate: 240
+      renderer_fps: 120
+      optimize_window_capture: true
+      zero_latency_mode: true
+
+  handlers:
+    - name: reboot_if_needed
+      reboot:
+        msg: "Reboot triggered by workstation provisioning"
+        reboot_timeout: 1800
+        post_reboot_delay: 25
+
+    - name: regenerate_initramfs
+      command: update-initramfs -u
+      notify: reboot_if_needed
+
+    - name: update_grub
+      command: update-grub
+      notify: reboot_if_needed
+
+  pre_tasks:
+    - name: Check exactly four NVMe devices defined
+      assert:
+        that:
+          - nvme_devices | length == 4
+        fail_msg: "nvme_devices must list exactly 4 block devices."
+
+    - name: Install base toolchain packages
+      apt:
+        name:
+          - mdadm
+          - lvm2
+          - parted
+          - curl
+          - gnupg
+          - software-properties-common
+        update_cache: true
+        state: present
+
+  roles:
+    - raid_lvm
+    - desktop
+    - nvidia
+    - dcv
+    - parsec
+    - tuning
+    - { role: root_migration, when: migrate_root }
+    - { role: gpu_monitoring, when: enable_gpu_monitoring }
+
+  tasks:
+    - name: Placeholder task list (all functional logic in roles)
+      debug:
+        msg: "All provisioning steps executed via roles."
