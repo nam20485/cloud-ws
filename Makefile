@@ -10,6 +10,11 @@ default: help
 
 help:
 	@echo 'Common targets:'
+	@echo '  make terraform-init    - Terraform init'
+	@echo '  make terraform-plan    - Terraform plan'
+	@echo '  make terraform-apply   - Terraform apply (creates/changes infrastructure)' 
+	@echo '  make terraform-destroy - Terraform destroy (tears down infrastructure)'
+	@echo '  make provision         - End-to-end: terraform apply + ansible provisioning'
 	@echo '  make lint              - Run ansible-lint'
 	@echo '  make syntax            - Ansible syntax check'
 	@echo '  make list-tasks        - List tasks in workstation playbook'
@@ -41,6 +46,41 @@ idempotency-subset:
 	ansible-playbook -i $(INVENTORY) $(PLAYBOOK) --tags $(TAGS) -vv $(EXTRA) | tee .idempotency_first.log
 	ansible-playbook -i $(INVENTORY) $(PLAYBOOK) --tags $(TAGS) -vv $(EXTRA) | tee .idempotency_second.log
 	@echo 'Review .idempotency_* logs; second run should report 0 changed.'
+
+# -------------------------------
+# Terraform + Provisioning
+# Expects environment variable TF_VAR_hcloud_token or HCLOUD_TOKEN (auto-mapped)
+# Example:
+#   export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
+#   make provision EXTRA='-e migrate_root=true'
+# -------------------------------
+
+# Map HCLOUD_TOKEN -> TF_VAR_hcloud_token if convenient for users
+export TF_VAR_hcloud_token ?= $(HCLOUD_TOKEN)
+
+terraform-init:
+	terraform init
+
+terraform-plan: terraform-init
+	@if [ -z "$$TF_VAR_hcloud_token" ]; then echo 'Missing TF_VAR_hcloud_token (Hetzner API token)'; exit 1; fi
+	terraform plan -out=tfplan
+
+terraform-apply: terraform-init
+	@if [ -z "$$TF_VAR_hcloud_token" ]; then echo 'Missing TF_VAR_hcloud_token (Hetzner API token)'; exit 1; fi
+	terraform apply -auto-approve
+
+terraform-destroy:
+	@if [ -z "$$TF_VAR_hcloud_token" ]; then echo 'Missing TF_VAR_hcloud_token (Hetzner API token)'; exit 1; fi
+	terraform destroy -auto-approve
+
+# Full end-to-end: infra + configuration
+provision: terraform-apply
+	@echo 'Generating dynamic inventory from terraform output...'
+	@SERVER_IP=$$(terraform output -raw server_ip); \
+	echo "[raid_server]" > inventory.generated.ini; \
+	echo "$$SERVER_IP ansible_user=root" >> inventory.generated.ini; \
+	echo "Generated inventory.generated.ini:"; cat inventory.generated.ini
+	ansible-playbook -i inventory.generated.ini $(PLAYBOOK) -vv $(EXTRA)
 
 # Placeholder for molecule delegated scenario (not yet implemented).
 molecule:
