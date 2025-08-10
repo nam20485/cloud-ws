@@ -93,10 +93,4 @@ molecule-delegated:
 	TARGET_USER=${TARGET_USER:-root} SSH_KEY=${SSH_KEY:-$$HOME/.ssh/id_rsa} \
 		molecule -s delegated -d delegated -c ubuntu-cinnamon/roles/$(ROLE)/molecule/delegated/molecule.yml test
 
-molecule-delegated:
-	@if [ -z "$(ROLE)" ]; then echo 'Usage: make molecule-delegated ROLE=role_name TARGET_HOST=host'; exit 1; fi
-	@if [ -z "$(TARGET_HOST)" ]; then echo 'TARGET_HOST env/var required'; exit 1; fi
-	TARGET_USER=${TARGET_USER:-root} SSH_KEY=${SSH_KEY:-$$HOME/.ssh/id_rsa} \
-		molecule -s delegated -d delegated -c ubuntu-cinnamon/roles/$(ROLE)/molecule/delegated/molecule.yml test
-
 .PHONY: help lint syntax list-tasks dry-run run-subset idempotency-subset molecule
