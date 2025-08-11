@@ -1,0 +1,85 @@
+---
+# Post-install configuration after RAID/LVM bootstrap on AX102
+- hosts: raid_server
+  become: true
+  vars:
+    dcv_url: "https://d1ufpr0f92lp74.cloudfront.net/nice-dcv-2024.0-16289-ubuntu2204-x86_64.tgz"
+    parsec_url: "https://builds.parsec.app/package/parsec-linux.deb"
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install base packages
+      apt:
+        name:
+          - curl
+          - wget
+          - software-properties-common
+          - lsb-release
+        state: present
+
+    - name: Install NVIDIA drivers (automatic)
+      command: ubuntu-drivers autoinstall
+      args:
+        creates: /usr/bin/nvidia-smi
+
+    - name: Reboot after driver install
+      reboot:
+        msg: "Reboot for NVIDIA drivers"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Verify NVIDIA
+      command: nvidia-smi
+      register: nvidia_out
+      changed_when: false
+      failed_when: nvidia_out.rc != 0
+
+    - name: Install DCV server
+      script: ubuntu-cinnamon/files/setup_dcv.sh {{ dcv_url }}
+      args:
+        creates: /usr/bin/dcv
+
+    - name: Install Parsec
+      script: ubuntu-cinnamon/files/setup_parsec.sh {{ parsec_url }}
+      args:
+        creates: /usr/bin/parsec
+
+    - name: Harden SSH - create admin user
+      user:
+        name: admin
+        groups: sudo
+        append: yes
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Ensure admin .ssh directory
+      file:
+        path: /home/admin/.ssh
+        state: directory
+        owner: admin
+        group: admin
+        mode: '0700'
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Copy root authorized_keys to admin (if exists)
+      copy:
+        src: /root/.ssh/authorized_keys
+        dest: /home/admin/.ssh/authorized_keys
+        owner: admin
+        group: admin
+        mode: '0600'
+      when: ansible_facts['os_family'] == 'Debian' and lookup('ansible.builtin.fileglob','/root/.ssh/authorized_keys', errors='ignore') != ''
+
+    - name: Disable root SSH login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        create: yes
+        backup: yes
+
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted

@@ -2,14 +2,16 @@
 
 variable "robot_user" {
   type        = string
-  description = "Hetzner Robot API username."
+  description = "Hetzner Robot API username (currently unused by this module)."
   sensitive   = true
+  default     = null # Made optional to prevent apply errors until Robot automation is added
 }
 
 variable "robot_pass" {
   type        = string
-  description = "Hetzner Robot API password."
+  description = "Hetzner Robot API password (currently unused by this module)."
   sensitive   = true
+  default     = null # Made optional to prevent apply errors until Robot automation is added
 }
 
 variable "server_model" {

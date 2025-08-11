@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored) and fill in your real values.
+# NOTE: Variable name must match 'variable "hcloud_token"' in main.tf.
+# Do NOT name it HCLOUD_TOKEN here; Terraform Cloud run picked up an unintended HCLOUD_TOKEN key.
+
+hcloud_token = "hc_example_token_replace_me"
+# Optionally override image (matches variable "server_image"):
+# server_image = "ubuntu-24.04"

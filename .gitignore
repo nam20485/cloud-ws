@@ -22,3 +22,7 @@ host_vars/
 secrets.yml
 secrets.yaml
 vault_pass.txt
+
+# Local variable files (should not be committed)
+terraform.tfvars
+*.auto.tfvars
