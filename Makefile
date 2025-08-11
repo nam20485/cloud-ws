@@ -24,6 +24,8 @@ help:
 	@echo '  make molecule ROLE=name - Run molecule test for role (delegated scenario placeholder)'
 	@echo '  make molecule-delegated ROLE=gpu_monitoring TARGET_HOST=ip [TARGET_USER=root SSH_KEY=~/.ssh/id_rsa]'
 	@echo '  make molecule-delegated ROLE=gpu_monitoring TARGET_HOST=ip [TARGET_USER=root SSH_KEY=~/.ssh/id_rsa]' 
+	@echo '  make ax102-start HOST=ip [VARIANT=uefi ROOT=120G SWAP=16G WORKSTATION=1]' 
+	@echo '  make ax102-dry HOST=ip  - Show plan only'
 
 lint:
 	ansible-lint
@@ -46,6 +48,22 @@ idempotency-subset:
 	ansible-playbook -i $(INVENTORY) $(PLAYBOOK) --tags $(TAGS) -vv $(EXTRA) | tee .idempotency_first.log
 	ansible-playbook -i $(INVENTORY) $(PLAYBOOK) --tags $(TAGS) -vv $(EXTRA) | tee .idempotency_second.log
 	@echo 'Review .idempotency_* logs; second run should report 0 changed.'
+
+# -------------------------------
+# Dedicated AX102 one-shot automation wrapper (alpha)
+# -------------------------------
+
+AX102_SCRIPT = scripts/ax102_automate.sh
+
+ax102-start:
+	@if [ -z "$$HOST" ]; then echo 'Usage: make ax102-start HOST=ip [VARIANT=uefi|bios] [ROOT=100G] [SWAP=8G] [WORKSTATION=1]'; exit 1; fi
+	VARIANT=$${VARIANT:-uefi} ROOT_SIZE=$${ROOT:-100G} SWAP_SIZE=$${SWAP:-8G} \
+		bash $(AX102_SCRIPT) start --host $$HOST --variant $$VARIANT --host-name $${HOSTNAME_OVERRIDE:-ax102-host} \
+		--root-size $$ROOT_SIZE --swap-size $$SWAP_SIZE $$( [ -n "$$WORKSTATION" ] && echo --full-workstation ) $$( [ -n "$$EXTRA" ] && echo --extra-ansible "$$EXTRA" )
+
+ax102-dry:
+	@if [ -z "$$HOST" ]; then echo 'Usage: make ax102-dry HOST=ip'; exit 1; fi
+	bash $(AX102_SCRIPT) start --host $$HOST --dry-run
 
 # -------------------------------
 # Terraform + Provisioning
