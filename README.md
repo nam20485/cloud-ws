@@ -4,6 +4,7 @@ This repository contains two provisioning tracks:
 
 1. Hetzner Cloud (hcloud) VM (Terraform) – simple single-instance creation (no RAID) via `main.tf`.
 2. Hetzner Dedicated AX102 (Robot rescue mode) – manual scripts to build high‑performance storage (RAID10 + LVM) and optional variants (ZFS, UEFI).
+3. One‑touch AX102 automation wrapper (`scripts/ax102_automate.sh`) – orchestrates rescue enable/reset (Robot API), provisioning script execution, reboot, verification, optional Ansible, minimal reporting & resume.
 
 ## Contents Overview
 
@@ -11,10 +12,11 @@ This repository contains two provisioning tracks:
 |------|---------|
 | `cloud/main.tf`, `cloud/variables.tf` | Terraform config for Hetzner Cloud server (NOT the dedicated AX102). |
 | `ansible/site.yml` | Main Ansible play including roles for base, gpu, remote_desktop, hardening, firewall. |
-| `dedicated/robot_provision_simple.sh` | BIOS (legacy) provisioning: RAID1 /boot + RAID10 + LVM root(+swap)+data (ext4). |
-| `dedicated/robot_provision_simple_uefi.sh` | UEFI variant with per‑disk ESPs + RAID10 + LVM root(+swap)+data. |
-| `dedicated/robot_provision_zfs.sh` | BIOS variant with small ZFS pool LV (ZFS-on-LVM) plus ext4 root/data. |
-| `dedicated/verify_post_boot.sh` | Verification script for post‑boot health checks. |
+| `robot/robot_provision_simple.sh` | BIOS (legacy) provisioning: RAID1 /boot + RAID10 + LVM root(+swap)+data (ext4). |
+| `robot/robot_provision_simple_uefi.sh` | UEFI variant with per‑disk ESPs + RAID10 + LVM root(+swap)+data. |
+| `robot/robot_provision_zfs.sh` | BIOS variant with small ZFS pool LV (ZFS-on-LVM) plus ext4 root/data. |
+| `robot/verify_post_boot.sh` | Verification script for post‑boot health checks. |
+| `scripts/ax102_automate.sh` | One‑touch wrapper orchestrating full dedicated provisioning flow. |
 | `inventory.dedicated.example.ini` | Example Ansible inventory for the dedicated server. |
 
 ## Choosing a Variant
@@ -46,6 +48,46 @@ This repository contains two provisioning tracks:
 - Use `robot_provision_zfs.sh` in rescue.
 - Creates md RAID10 -> LVM -> small LV for ZFS pool + root + data.
 - ZFS pool `codepool` mounted at `/srv/code` with `compression=lz4`.
+
+## One‑Touch Automation Wrapper (MVP)
+
+The wrapper reduces the manual rescue workflow to a single command.
+
+Minimal flow:
+```bash
+export ROBOT_USER=xxx ROBOT_PASSWORD=yyy ROBOT_SERVER_ID=123456
+./scripts/ax102_automate.sh start --variant uefi --full-workstation
+```
+
+Key features (MVP):
+- Robot API: enable rescue + hardware reset (if credentials provided)
+- Auto IP discovery (Robot API) if `--host` omitted
+- Provisioning script selection: `--variant uefi|bios`
+- Resume: creates `/root/.ax102_provision_done` – re-run skips destructive phase unless `--force`
+- Verification: uploads & runs `robot/verify_post_boot.sh` capturing PASS/FAIL
+- Key propagation: `--pubkey` or inferred `--ssh-key.pub` ensured in `/root/.ssh/authorized_keys`
+- Minimal JSON report + log in `runs/<timestamp>/`
+
+Useful flags:
+| Flag | Purpose |
+|------|---------|
+| `--host <ip>` | Skip IP discovery / use existing server IP |
+| `--variant uefi|bios` | Choose provisioning script variant |
+| `--force` | Force full re-provision even if marker exists |
+| `--rerun-ansible` | Run Ansible even during a resume skip |
+| `--pubkey <path>` | Explicit public key (default derives from `--ssh-key.pub`) |
+| `--no-ansible` | Skip Ansible phase |
+| `--dry-run` | Show plan only, no changes |
+
+Outputs:
+- Combined log: `runs/<ts>/provision.log` (stdout/stderr tee)
+- Report JSON: `runs/<ts>/report.json` containing: status, timings, server id, IP, variant, verification status, versions (kernel, NVIDIA driver, DCV, Parsec state)
+
+Return codes:
+- 0 success (including resume skip)
+- Non-zero fatal provisioning/connection failures
+
+Planned (optional) enhancements tracked in issue #28.
 
 ## Post‑Install (All Dedicated Variants)
 1. Update `inventory.ini` (see example).
@@ -88,10 +130,7 @@ The verification script checks:
 Return code 0 = all critical checks passed; non-zero indicates issues.
 
 ## Future Enhancements
-- Robot API ordering automation.
-- Native ZFS mirror vdev layout (no LVM) variant.
-- Encryption (LUKS) layer + Tang or passphrase.
-- Dedicated systemd unit to auto-run verification on boot.
+- Role/tag-based selective Ansible, richer Markdown reporting, health guardrails, metrics, encryption, Secure Boot path, CI simulation, destroy helper, extended docs. See issue #28 for full list.
 
 ## Disclaimer
 Use at your own risk. All provisioning scripts are destructive to listed NVMe devices. Confirm you are on the intended server in rescue mode before running.

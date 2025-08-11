@@ -26,3 +26,6 @@ vault_pass.txt
 # Local variable files (should not be committed)
 terraform.tfvars
 *.auto.tfvars
+
+# Generated run artifacts
+runs/

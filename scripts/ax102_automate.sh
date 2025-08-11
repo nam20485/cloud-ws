@@ -408,7 +408,13 @@ start_flow() {
     log "Skipping Ansible phase per --no-ansible"
   fi
   write_remote_marker "$HOST_IP" || true
-  STATUS=$([[ "$VERIFY_STATUS" == PASS ]] && echo SUCCESS || echo SUCCESS) # still SUCCESS even if verification FAIL to allow inspection; FAIL already recorded in VERIFY_STATUS
+  if [[ "$VERIFY_STATUS" == PASS ]]; then
+    STATUS=SUCCESS
+  elif [[ "$VERIFY_STATUS" == FAIL ]]; then
+    STATUS=VERIFY_FAIL
+  else
+    STATUS=SUCCESS
+  fi
   write_json_report
   log "All done. Connect: ssh root@${HOST_IP}"
 }
