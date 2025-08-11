@@ -26,6 +26,8 @@ help:
 	@echo '  make molecule-delegated ROLE=gpu_monitoring TARGET_HOST=ip [TARGET_USER=root SSH_KEY=~/.ssh/id_rsa]' 
 	@echo '  make ax102-start HOST=ip [VARIANT=uefi ROOT=120G SWAP=16G WORKSTATION=1]' 
 	@echo '  make ax102-dry HOST=ip  - Show plan only'
+	@echo '  make ax102-latest-report - Show path + contents of latest run report'
+	@echo '  make ax102-log - Tail the latest provisioning log'
 
 lint:
 	ansible-lint
@@ -64,6 +66,22 @@ ax102-start:
 ax102-dry:
 	@if [ -z "$$HOST" ]; then echo 'Usage: make ax102-dry HOST=ip'; exit 1; fi
 	bash $(AX102_SCRIPT) start --host $$HOST --dry-run
+
+ax102-latest-report:
+	@latest=$$(ls -1t runs 2>/dev/null | head -n1); \
+	if [ -z "$$latest" ]; then echo 'No runs yet'; exit 1; fi; \
+	file=runs/$$latest/report.json; \
+	if [ ! -f "$$file" ]; then echo 'Report not found: '$$file; exit 1; fi; \
+	echo "Latest report: $$file"; \
+	cat $$file | sed 's/^/  /'
+
+ax102-log:
+	@latest=$$(ls -1t runs 2>/dev/null | head -n1); \
+	if [ -z "$$latest" ]; then echo 'No runs yet'; exit 1; fi; \
+	logf=runs/$$latest/provision.log; \
+	if [ ! -f "$$logf" ]; then echo 'Log not found: '$$logf; exit 1; fi; \
+	echo 'Tailing ' $$logf; \
+	tail -n 60 $$logf
 
 # -------------------------------
 # Terraform + Provisioning

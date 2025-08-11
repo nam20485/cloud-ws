@@ -417,6 +417,10 @@ start_flow() {
   fi
   write_json_report
   log "All done. Connect: ssh root@${HOST_IP}"
+  # Exit codes: 0 success/resume; 2 verification failed (provision otherwise succeeded)
+  if [[ "$STATUS" == VERIFY_FAIL ]]; then
+    exit 2
+  fi
 }
 
 destroy_flow() {
